@@ -1,3 +1,1 @@
-#!/bin/bash
-# Import an existing cache
-terraform import cachix_cache.my_project my-project
+terraform import cachix_cache.example my-cache-name

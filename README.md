@@ -1,10 +1,13 @@
 # Terraform Provider for Cachix
 
+[![Tests](https://github.com/takeokunn/terraform-provider-cachix/actions/workflows/test.yml/badge.svg)](https://github.com/takeokunn/terraform-provider-cachix/actions/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/takeokunn/terraform-provider-cachix)](https://goreportcard.com/report/github.com/takeokunn/terraform-provider-cachix)
+
 A Terraform provider for managing [Cachix](https://cachix.org) binary caches as infrastructure-as-code.
 
 ## Requirements
 
-- [Go](https://golang.org/doc/install) 1.23+ (for building from source)
+- [Go](https://golang.org/doc/install) 1.24+ (for building from source)
 - [Terraform](https://www.terraform.io/downloads.html) 1.0+
 - A [Cachix](https://cachix.org) account with an API token
 
@@ -220,6 +223,17 @@ provider "cachix" {
 }
 ```
 
+## Provider Configuration
+
+| Property   | Environment Variable | Required | Description |
+|------------|---------------------|----------|-------------|
+| `auth_token` | `CACHIX_AUTH_TOKEN` | Yes | Cachix API authentication token |
+| `api_host` | - | No | Custom API host URL (default: `https://app.cachix.org/api/v1`) |
+
+## Documentation
+
+Full documentation is available on the [Terraform Registry](https://registry.terraform.io/providers/takeokunn/cachix/latest/docs).
+
 ## Development
 
 ### Building
@@ -245,7 +259,7 @@ make testacc
 ### Generating Documentation
 
 ```bash
-make docs
+make generate
 ```
 
 ### Release
@@ -254,6 +268,10 @@ Releases are automated via GitHub Actions and GoReleaser. To create a new releas
 
 1. Tag the commit: `git tag v0.1.0`
 2. Push the tag: `git push origin v0.1.0`
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 

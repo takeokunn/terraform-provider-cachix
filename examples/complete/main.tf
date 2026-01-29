@@ -97,9 +97,9 @@ output "authenticated_user" {
 output "main_cache" {
   description = "Main project cache details"
   value = {
-    name              = cachix_cache.main.name
-    uri               = cachix_cache.main.uri
-    is_public         = cachix_cache.main.is_public
+    name                = cachix_cache.main.name
+    uri                 = cachix_cache.main.uri
+    is_public           = cachix_cache.main.is_public
     public_signing_keys = cachix_cache.main.public_signing_keys
   }
 }
@@ -145,18 +145,18 @@ output "nix_extra_config" {
     # User: ${data.cachix_user.current.username}
 
     extra-substituters = ${join(" ", concat(
-      [cachix_cache.main.uri],
-      [for cache in cachix_cache.env : cache.uri],
-      [data.cachix_cache.nix_community.uri],
-      [data.cachix_cache.devenv.uri]
-    ))}
+  [cachix_cache.main.uri],
+  [for cache in cachix_cache.env : cache.uri],
+  [data.cachix_cache.nix_community.uri],
+  [data.cachix_cache.devenv.uri]
+  ))}
 
     extra-trusted-public-keys = ${join(" ", concat(
-      cachix_cache.main.public_signing_keys,
-      flatten([for cache in cachix_cache.env : cache.public_signing_keys]),
-      data.cachix_cache.nix_community.public_signing_keys,
-      data.cachix_cache.devenv.public_signing_keys
-    ))}
+  cachix_cache.main.public_signing_keys,
+  flatten([for cache in cachix_cache.env : cache.public_signing_keys]),
+  data.cachix_cache.nix_community.public_signing_keys,
+  data.cachix_cache.devenv.public_signing_keys
+))}
   EOT
 }
 

@@ -1,0 +1,33 @@
+---
+page_title: "Provider: Cachix"
+description: |-
+  The Cachix provider manages Cachix binary caches as infrastructure-as-code.
+---
+
+# Cachix Provider
+
+The Cachix provider allows you to manage [Cachix](https://cachix.org) binary caches as infrastructure-as-code. Cachix is a hosted binary cache service for Nix that allows you to share build artifacts across machines and CI/CD pipelines.
+
+## Example Usage
+
+{{ tffile "examples/provider/provider.tf" }}
+
+## Authentication
+
+The provider requires a Cachix authentication token. You can configure it in two ways:
+
+### Environment Variable (Recommended)
+
+```bash
+export CACHIX_AUTH_TOKEN="your-token-here"
+```
+
+### Provider Configuration
+
+```hcl
+provider "cachix" {
+  auth_token = var.cachix_token
+}
+```
+
+{{ .SchemaMarkdown | trimspace }}

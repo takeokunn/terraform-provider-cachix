@@ -1,0 +1,49 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'examples/**'
+      - 'internal/**'
+      - 'templates/**'
+      - 'tools/**'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'examples/**'
+      - 'internal/**'
+      - 'templates/**'
+      - 'tools/**'
+      - 'go.mod'
+      - 'go.sum'
+
+jobs:
+  tfplugindocs-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Generate documentation
+        run: cd tools && go mod download && go generate ./...
+
+      - name: Check for differences
+        run: |
+          git diff --exit-code docs/ || (echo "Documentation is out of date. Please run 'cd tools && go generate ./...' and commit the changes."; exit 1)

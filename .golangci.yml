@@ -1,0 +1,38 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - errorlint
+    - govet
+    - ineffassign
+    - misspell
+    - predeclared
+    - staticcheck
+    - unconvert
+    - unused
+
+linters-settings:
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  misspell:
+    locale: US
+
+issues:
+  exclude-dirs:
+    - examples
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/takeokunn/terraform-provider-cachix

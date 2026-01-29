@@ -5,11 +5,7 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"regexp"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -17,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -71,12 +66,7 @@ func (r *CacheResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
-				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-z][a-z0-9-]*$`),
-						"must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens",
-					),
-				},
+				Validators: CacheNameValidators(),
 			},
 			"is_public": schema.BoolAttribute{
 				Optional:            true,
@@ -105,20 +95,7 @@ func (r *CacheResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 
 // Configure adds the provider configured client to the resource.
 func (r *CacheResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*CachixClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *CachixClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
+	r.client = getClientFromProviderData(req.ProviderData, &resp.Diagnostics, "Resource")
 }
 
 // Create creates a new cache resource.
@@ -130,11 +107,7 @@ func (r *CacheResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	if r.client == nil {
-		resp.Diagnostics.AddError(
-			"Unconfigured Cachix Client",
-			"Expected configured Cachix client. Please report this issue to the provider developers.",
-		)
+	if !requireClient(r.client, &resp.Diagnostics) {
 		return
 	}
 
@@ -144,40 +117,20 @@ func (r *CacheResource) Create(ctx context.Context, req resource.CreateRequest, 
 	})
 
 	cache, err := r.client.CreateCache(ctx, data.Name.ValueString(), data.IsPublic.ValueBool())
-	if err != nil {
-		if apiErr, ok := err.(*APIError); ok {
-			switch apiErr.StatusCode {
-			case http.StatusUnauthorized, http.StatusForbidden:
-				resp.Diagnostics.AddError(
-					"Authentication Error",
-					fmt.Sprintf("Unable to create cache: authentication failed. Please verify your CACHIX_AUTH_TOKEN is valid. Details: %s", apiErr.Message),
-				)
-			default:
-				resp.Diagnostics.AddError(
-					"Unable to Create Cache",
-					fmt.Sprintf("An error occurred while creating the cache: %s", apiErr.Message),
-				)
-			}
-		} else {
-			resp.Diagnostics.AddError(
-				"Unable to Create Cache",
-				fmt.Sprintf("An unexpected error occurred while creating the cache. Please retry the operation or report this issue to the provider developers.\n\nError: %s", err.Error()),
-			)
-		}
+	errorHandler := &APIErrorHandler{
+		Diagnostics:  &resp.Diagnostics,
+		ResourceType: "cache",
+		ResourceName: data.Name.ValueString(),
+		Operation:    "create",
+	}
+	if errorHandler.Handle(err) {
 		return
 	}
 
-	data.ID = types.StringValue(cache.Name)
-	data.Name = types.StringValue(cache.Name)
-	data.IsPublic = types.BoolValue(cache.IsPublic)
-	data.URI = types.StringValue(cache.URI)
-
-	publicSigningKeys, diags := types.ListValueFrom(ctx, types.StringType, cache.PublicSigningKeys)
-	resp.Diagnostics.Append(diags...)
+	data.ID, data.Name, data.IsPublic, data.URI, data.PublicSigningKeys = mapCacheToState(ctx, cache, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	data.PublicSigningKeys = publicSigningKeys
 
 	tflog.Trace(ctx, "Created cache", map[string]any{
 		"name": data.Name.ValueString(),
@@ -196,11 +149,7 @@ func (r *CacheResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	if r.client == nil {
-		resp.Diagnostics.AddError(
-			"Unconfigured Cachix Client",
-			"Expected configured Cachix client. Please report this issue to the provider developers.",
-		)
+	if !requireClient(r.client, &resp.Diagnostics) {
 		return
 	}
 
@@ -209,46 +158,26 @@ func (r *CacheResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	})
 
 	cache, err := r.client.GetCache(ctx, data.Name.ValueString())
-	if err != nil {
-		if apiErr, ok := err.(*APIError); ok {
-			switch apiErr.StatusCode {
-			case http.StatusNotFound:
-				tflog.Warn(ctx, "Cache not found, removing from state", map[string]any{
-					"name": data.Name.ValueString(),
-				})
-				resp.State.RemoveResource(ctx)
-				return
-			case http.StatusUnauthorized, http.StatusForbidden:
-				resp.Diagnostics.AddError(
-					"Authentication Error",
-					fmt.Sprintf("Unable to read cache: authentication failed. Please verify your CACHIX_AUTH_TOKEN is valid. Details: %s", apiErr.Message),
-				)
-			default:
-				resp.Diagnostics.AddError(
-					"Unable to Read Cache",
-					fmt.Sprintf("An error occurred while reading the cache: %s", apiErr.Message),
-				)
-			}
-		} else {
-			resp.Diagnostics.AddError(
-				"Unable to Read Cache",
-				fmt.Sprintf("An unexpected error occurred while reading the cache. Please retry the operation or report this issue to the provider developers.\n\nError: %s", err.Error()),
-			)
+	errorHandler := &APIErrorHandler{
+		Diagnostics:  &resp.Diagnostics,
+		ResourceType: "cache",
+		ResourceName: data.Name.ValueString(),
+		Operation:    "read",
+	}
+	if shouldReturn, wasNotFound := errorHandler.HandleNotFoundAsRemoved(err); shouldReturn {
+		if wasNotFound {
+			tflog.Warn(ctx, "Cache not found, removing from state", map[string]any{
+				"name": data.Name.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
 		}
 		return
 	}
 
-	data.ID = types.StringValue(cache.Name)
-	data.Name = types.StringValue(cache.Name)
-	data.IsPublic = types.BoolValue(cache.IsPublic)
-	data.URI = types.StringValue(cache.URI)
-
-	publicSigningKeys, diags := types.ListValueFrom(ctx, types.StringType, cache.PublicSigningKeys)
-	resp.Diagnostics.Append(diags...)
+	data.ID, data.Name, data.IsPublic, data.URI, data.PublicSigningKeys = mapCacheToState(ctx, cache, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	data.PublicSigningKeys = publicSigningKeys
 
 	tflog.Trace(ctx, "Read cache", map[string]any{
 		"name": data.Name.ValueString(),
@@ -275,11 +204,7 @@ func (r *CacheResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	if r.client == nil {
-		resp.Diagnostics.AddError(
-			"Unconfigured Cachix Client",
-			"Expected configured Cachix client. Please report this issue to the provider developers.",
-		)
+	if !requireClient(r.client, &resp.Diagnostics) {
 		return
 	}
 
@@ -288,37 +213,17 @@ func (r *CacheResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	})
 
 	err := r.client.DeleteCache(ctx, data.Name.ValueString())
-	if err != nil {
-		if apiErr, ok := err.(*APIError); ok {
-			switch apiErr.StatusCode {
-			case http.StatusNotFound:
-				tflog.Warn(ctx, "Cache already deleted", map[string]any{
-					"name": data.Name.ValueString(),
-				})
-				return
-			case http.StatusUnauthorized, http.StatusForbidden:
-				resp.Diagnostics.AddError(
-					"Authentication Error",
-					fmt.Sprintf("Unable to delete cache: authentication failed. Please verify your CACHIX_AUTH_TOKEN is valid. Details: %s", apiErr.Message),
-				)
-			default:
-				if apiErr.StatusCode >= 500 {
-					resp.Diagnostics.AddError(
-						"Server Error",
-						fmt.Sprintf("A server error occurred while deleting the cache. Please retry the operation. Details: %s", apiErr.Message),
-					)
-				} else {
-					resp.Diagnostics.AddError(
-						"Unable to Delete Cache",
-						fmt.Sprintf("An error occurred while deleting the cache: %s", apiErr.Message),
-					)
-				}
-			}
-		} else {
-			resp.Diagnostics.AddError(
-				"Unable to Delete Cache",
-				fmt.Sprintf("An unexpected error occurred while deleting the cache. Please retry the operation or report this issue to the provider developers.\n\nError: %s", err.Error()),
-			)
+	errorHandler := &APIErrorHandler{
+		Diagnostics:  &resp.Diagnostics,
+		ResourceType: "cache",
+		ResourceName: data.Name.ValueString(),
+		Operation:    "delete",
+	}
+	if shouldReturn, wasNotFound := errorHandler.HandleNotFoundAsRemoved(err); shouldReturn {
+		if wasNotFound {
+			tflog.Warn(ctx, "Cache already deleted", map[string]any{
+				"name": data.Name.ValueString(),
+			})
 		}
 		return
 	}

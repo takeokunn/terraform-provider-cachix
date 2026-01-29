@@ -56,11 +56,11 @@ func TestCacheResource_Schema_NameValidation(t *testing.T) {
 		{"cache123", true},
 		{"a", true},
 		{"test-cache-name", true},
-		{"123cache", false},  // starts with number
-		{"My-Cache", false},  // uppercase
-		{"my_cache", false},  // underscore
-		{"my cache", false},  // space
-		{"-cache", false},    // starts with hyphen
+		{"123cache", false}, // starts with number
+		{"My-Cache", false}, // uppercase
+		{"my_cache", false}, // underscore
+		{"my cache", false}, // space
+		{"-cache", false},   // starts with hyphen
 	}
 
 	pattern := regexp.MustCompile(`^[a-z][a-z0-9-]*$`)

@@ -51,7 +51,7 @@ provider_installation {
 
 ## Quick Start
 
-1. Set your Cachix authentication token:
+1. Set your Cachix authentication token (see [Authentication](#authentication) for details):
 
 ```bash
 export CACHIX_AUTH_TOKEN="your-token-here"
@@ -196,7 +196,12 @@ This data source has no required arguments. It retrieves the user associated wit
 
 ## Authentication
 
-The provider requires a Cachix authentication token. You can configure it in two ways:
+The provider requires a Cachix authentication token.
+
+| Property   | Environment Variable | Required | Description |
+|------------|---------------------|----------|-------------|
+| `auth_token` | `CACHIX_AUTH_TOKEN` | Yes | Cachix API authentication token |
+| `api_host` | - | No | Custom API host URL (default: `https://app.cachix.org/api/v1`) |
 
 ### Environment Variable (Recommended)
 
@@ -209,26 +214,9 @@ export CACHIX_AUTH_TOKEN="your-token-here"
 ```hcl
 provider "cachix" {
   auth_token = var.cachix_token
+  api_host   = "https://your-cachix-instance.example.com/api/v1"  # Optional: for self-hosted
 }
 ```
-
-### Optional: Custom API Host
-
-For self-hosted Cachix instances:
-
-```hcl
-provider "cachix" {
-  auth_token = var.cachix_token
-  api_host   = "https://your-cachix-instance.example.com/api/v1"
-}
-```
-
-## Provider Configuration
-
-| Property   | Environment Variable | Required | Description |
-|------------|---------------------|----------|-------------|
-| `auth_token` | `CACHIX_AUTH_TOKEN` | Yes | Cachix API authentication token |
-| `api_host` | - | No | Custom API host URL (default: `https://app.cachix.org/api/v1`) |
 
 ## Documentation
 

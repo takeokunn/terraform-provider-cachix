@@ -265,8 +265,8 @@ func TestCachixClient_handleErrorResponse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := client.handleErrorResponse(tt.statusCode, tt.body)
 
-			apiErr, ok := err.(*APIError)
-			if !ok {
+			var apiErr *APIError
+			if !errors.As(err, &apiErr) {
 				t.Fatalf("expected *APIError, got %T", err)
 			}
 
@@ -478,7 +478,7 @@ func TestCachixClient_GetCache_Success(t *testing.T) {
 		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(Cache{
+		_ = json.NewEncoder(w).Encode(Cache{
 			Name:              "test-cache",
 			URI:               "https://test-cache.cachix.org",
 			IsPublic:          true,
@@ -512,7 +512,7 @@ func TestCachixClient_GetCache_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"message": "cache 'nonexistent-cache' not found",
 		})
 	}))
@@ -528,8 +528,8 @@ func TestCachixClient_GetCache_NotFound(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusNotFound {
@@ -544,7 +544,7 @@ func TestCachixClient_GetCache_Unauthorized(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "invalid token",
 		})
 	}))
@@ -560,8 +560,8 @@ func TestCachixClient_GetCache_Unauthorized(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusUnauthorized {
@@ -577,7 +577,7 @@ func TestCachixClient_GetCache_MalformedJSON(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		// Return malformed JSON
-		w.Write([]byte(`{"name": "test-cache", "uri": `))
+		_, _ = w.Write([]byte(`{"name": "test-cache", "uri": `))
 	}))
 	defer server.Close()
 
@@ -622,7 +622,7 @@ func TestCachixClient_CreateCache_Success(t *testing.T) {
 		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(Cache{
+		_ = json.NewEncoder(w).Encode(Cache{
 			Name:              "new-cache",
 			URI:               "https://new-cache.cachix.org",
 			IsPublic:          true,
@@ -653,7 +653,7 @@ func TestCachixClient_CreateCache_Conflict(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "cache 'existing-cache' already exists",
 		})
 	}))
@@ -669,8 +669,8 @@ func TestCachixClient_CreateCache_Conflict(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusConflict {
@@ -713,7 +713,7 @@ func TestCachixClient_DeleteCache_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"message": "cache 'nonexistent-cache' not found",
 		})
 	}))
@@ -726,8 +726,8 @@ func TestCachixClient_DeleteCache_NotFound(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusNotFound {
@@ -756,7 +756,7 @@ func TestCachixClient_GetUser_Success(t *testing.T) {
 		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(User{
+		_ = json.NewEncoder(w).Encode(User{
 			Username: "testuser",
 			Email:    "testuser@example.com",
 		})
@@ -781,7 +781,7 @@ func TestCachixClient_GetUser_Unauthorized(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "token has expired",
 		})
 	}))
@@ -797,8 +797,8 @@ func TestCachixClient_GetUser_Unauthorized(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusUnauthorized {
@@ -818,13 +818,13 @@ func TestCachixClient_doRequest_RetryOn5xx(t *testing.T) {
 		// Return 503 for first 2 attempts, then 200
 		if attempt <= 2 {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"error": "service temporarily unavailable"}`))
+			_, _ = w.Write([]byte(`{"error": "service temporarily unavailable"}`))
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(Cache{
+		_ = json.NewEncoder(w).Encode(Cache{
 			Name:     "test-cache",
 			URI:      "https://test-cache.cachix.org",
 			IsPublic: true,
@@ -862,13 +862,13 @@ func TestCachixClient_doRequest_RetryOn429(t *testing.T) {
 		if attempt == 1 {
 			w.Header().Set("Retry-After", "1")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error": "rate limit exceeded"}`))
+			_, _ = w.Write([]byte(`{"error": "rate limit exceeded"}`))
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(User{
+		_ = json.NewEncoder(w).Encode(User{
 			Username: "testuser",
 			Email:    "testuser@example.com",
 		})
@@ -899,7 +899,7 @@ func TestCachixClient_doRequest_MaxRetriesExceeded(t *testing.T) {
 		atomic.AddInt32(&attemptCount, 1)
 		// Always return 500 to exhaust retries
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "internal server error"}`))
+		_, _ = w.Write([]byte(`{"error": "internal server error"}`))
 	}))
 	defer server.Close()
 
@@ -928,7 +928,7 @@ func TestCachixClient_doRequest_ContextCancellation(t *testing.T) {
 		atomic.AddInt32(&attemptCount, 1)
 		// Always return 503 to trigger retry
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(`{"error": "service unavailable"}`))
+		_, _ = w.Write([]byte(`{"error": "service unavailable"}`))
 	}))
 	defer server.Close()
 
@@ -983,7 +983,7 @@ func TestCachixClient_doRequest_NoRetryOn4xx(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				atomic.AddInt32(&attemptCount, 1)
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(`{"error": "client error"}`))
+				_, _ = w.Write([]byte(`{"error": "client error"}`))
 			}))
 			defer server.Close()
 
@@ -1020,7 +1020,7 @@ func TestCachixClient_RequestHeaders(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(User{Username: "test"})
+		_ = json.NewEncoder(w).Encode(User{Username: "test"})
 	}))
 	defer server.Close()
 
@@ -1036,7 +1036,7 @@ func TestCachixClient_GetCache_PrivateCache(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(Cache{
+		_ = json.NewEncoder(w).Encode(Cache{
 			Name:              "private-cache",
 			URI:               "https://private-cache.cachix.org",
 			IsPublic:          false,
@@ -1072,7 +1072,7 @@ func TestCachixClient_CreateCache_PrivateCache(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(Cache{
+		_ = json.NewEncoder(w).Encode(Cache{
 			Name:     "private-cache",
 			URI:      "https://private-cache.cachix.org",
 			IsPublic: false,
@@ -1110,7 +1110,7 @@ func TestCachixClient_GetCache_Forbidden(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "you do not have permission to access this cache",
 		})
 	}))
@@ -1126,8 +1126,8 @@ func TestCachixClient_GetCache_Forbidden(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusForbidden {

@@ -565,10 +565,9 @@ func TestNew_MultipleFactoryCalls(t *testing.T) {
 }
 
 func TestProvider_ImplementsInterface(t *testing.T) {
-	p := New("test")()
-
-	// Verify the provider implements the required interface
-	var _ provider.Provider = p
+	// New returns a function that returns provider.Provider
+	// This test verifies the function signature at compile time
+	_ = New("test")
 }
 
 func TestProvider_Configure_ClientVersion(t *testing.T) {

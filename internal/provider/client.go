@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -140,7 +141,7 @@ func (c *CachixClient) doRequest(ctx context.Context, method, path string, body 
 		}
 
 		respBody, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response body: %w", err)
 			continue
@@ -296,7 +297,8 @@ func (c *CachixClient) DeleteCache(ctx context.Context, name string) error {
 
 // IsNotFoundError checks if an error is a 404 Not Found error.
 func IsNotFoundError(err error) bool {
-	if apiErr, ok := err.(*APIError); ok {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
 		return apiErr.StatusCode == http.StatusNotFound
 	}
 	return false

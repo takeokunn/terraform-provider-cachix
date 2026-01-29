@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version-file: 'go.mod'
 
       - name: Run tests
         run: go test -v -cover -coverprofile=coverage.out ./...
@@ -97,4 +97,4 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.62.2
+          version: v2.1.6

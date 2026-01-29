@@ -5,8 +5,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -47,17 +45,14 @@ func (d *UserDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description:         "The identifier of the user (same as username).",
 				MarkdownDescription: "The identifier of the user (same as username).",
 				Computed:            true,
 			},
 			"username": schema.StringAttribute{
-				Description:         "The username of the authenticated user.",
 				MarkdownDescription: "The username of the authenticated user.",
 				Computed:            true,
 			},
 			"email": schema.StringAttribute{
-				Description:         "The email address of the authenticated user.",
 				MarkdownDescription: "The email address of the authenticated user.",
 				Computed:            true,
 				Sensitive:           true,
@@ -68,28 +63,13 @@ func (d *UserDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 
 // Configure adds the provider configured client to the data source.
 func (d *UserDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*CachixClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *CachixClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
+	d.client = getClientFromProviderData(req.ProviderData, &resp.Diagnostics, "Data Source")
 }
 
 // Read refreshes the Terraform state with the latest data from the API.
 func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data UserDataSourceModel
 
-	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
@@ -98,40 +78,14 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	tflog.Debug(ctx, "Reading user data source")
 
-	// Call the API to get user information
 	user, err := d.client.GetUser(ctx)
-	if err != nil {
-		if apiErr, ok := err.(*APIError); ok {
-			switch apiErr.StatusCode {
-			case http.StatusUnauthorized, http.StatusForbidden:
-				resp.Diagnostics.AddError(
-					"Authentication Error",
-					fmt.Sprintf("Failed to authenticate with Cachix API: %s. Please verify your auth_token is valid.", err),
-				)
-			case http.StatusNotFound:
-				resp.Diagnostics.AddError(
-					"User Not Found",
-					"Unable to retrieve user information. The authenticated user may not exist or the token may be invalid.",
-				)
-			default:
-				if apiErr.StatusCode >= 500 {
-					resp.Diagnostics.AddError(
-						"Cachix API Error",
-						fmt.Sprintf("The Cachix API returned an error (HTTP %d): %s. Please try again later.", apiErr.StatusCode, err),
-					)
-				} else {
-					resp.Diagnostics.AddError(
-						"Error Reading User",
-						fmt.Sprintf("Unable to read user: %s", err),
-					)
-				}
-			}
-		} else {
-			resp.Diagnostics.AddError(
-				"Error Reading User",
-				fmt.Sprintf("Unable to read user: %s", err),
-			)
-		}
+	errorHandler := &APIErrorHandler{
+		Diagnostics:  &resp.Diagnostics,
+		ResourceType: "User",
+		ResourceName: "current",
+		Operation:    "read",
+	}
+	if errorHandler.Handle(err) {
 		return
 	}
 
@@ -139,7 +93,6 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		"username": user.Username,
 	})
 
-	// Map response to model
 	data.ID = types.StringValue(user.Username)
 	data.Username = types.StringValue(user.Username)
 	if user.Email != "" {
@@ -148,6 +101,5 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		data.Email = types.StringNull()
 	}
 
-	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

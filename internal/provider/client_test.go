@@ -596,39 +596,50 @@ func TestCachixClient_GetCache_MalformedJSON(t *testing.T) {
 }
 
 func TestCachixClient_CreateCache_Success(t *testing.T) {
+	var postCalled bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify request method
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		// Verify request path
-		if r.URL.Path != "/cache/new-cache" {
-			t.Errorf("expected /cache/new-cache, got %s", r.URL.Path)
-		}
-		// Verify Authorization header
-		if r.Header.Get("Authorization") != "Bearer test-token" {
-			t.Errorf("missing or invalid Authorization header")
-		}
-
-		// Verify request body
-		var reqBody CreateCacheRequest
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-			t.Errorf("failed to decode request body: %v", err)
-		}
-		if !reqBody.IsPublic {
-			t.Error("expected IsPublic to be true in request")
-		}
-
-		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(Cache{
-			Name:              "new-cache",
-			URI:               "https://new-cache.cachix.org",
-			IsPublic:          true,
-			PublicSigningKeys: []string{"new-cache.cachix.org-1:yyyy="},
-			CreatedAt:         "2024-01-15T12:00:00Z",
-		})
+
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/user":
+			// Return user info for accountID
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(User{
+				ID:       12345,
+				Username: "testuser",
+				Email:    "testuser@example.com",
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/cache/new-cache":
+			postCalled = true
+			// Verify request body
+			var reqBody CreateCacheRequest
+			if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+				t.Errorf("failed to decode request body: %v", err)
+			}
+			if !reqBody.IsPublic {
+				t.Error("expected IsPublic to be true in request")
+			}
+			if !reqBody.GenerateSigningKey {
+				t.Error("expected GenerateSigningKey to be true in request")
+			}
+			if reqBody.AccountID != 12345 {
+				t.Errorf("expected AccountID 12345, got %d", reqBody.AccountID)
+			}
+			// API returns empty body on success
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodGet && r.URL.Path == "/cache/new-cache":
+			// Return cache details after creation
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(Cache{
+				Name:              "new-cache",
+				URI:               "https://new-cache.cachix.org",
+				IsPublic:          true,
+				PublicSigningKeys: []string{"new-cache.cachix.org-1:yyyy="},
+			})
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
 
@@ -637,6 +648,9 @@ func TestCachixClient_CreateCache_Success(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if !postCalled {
+		t.Error("expected POST to /cache/new-cache to be called")
 	}
 	if cache.Name != "new-cache" {
 		t.Errorf("expected name 'new-cache', got '%s'", cache.Name)
@@ -652,10 +666,24 @@ func TestCachixClient_CreateCache_Success(t *testing.T) {
 func TestCachixClient_CreateCache_Conflict(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": "cache 'existing-cache' already exists",
-		})
+
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/user":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(User{
+				ID:       12345,
+				Username: "testuser",
+				Email:    "testuser@example.com",
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/cache/existing-cache":
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "cache 'existing-cache' already exists",
+			})
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
 
@@ -757,6 +785,7 @@ func TestCachixClient_GetUser_Success(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(User{
+			ID:       12345,
 			Username: "testuser",
 			Email:    "testuser@example.com",
 		})
@@ -768,6 +797,9 @@ func TestCachixClient_GetUser_Success(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if user.ID != 12345 {
+		t.Errorf("expected id 12345, got %d", user.ID)
 	}
 	if user.Username != "testuser" {
 		t.Errorf("expected username 'testuser', got '%s'", user.Username)
@@ -869,6 +901,7 @@ func TestCachixClient_doRequest_RetryOn429(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(User{
+			ID:       12345,
 			Username: "testuser",
 			Email:    "testuser@example.com",
 		})
@@ -1061,22 +1094,41 @@ func TestCachixClient_GetCache_PrivateCache(t *testing.T) {
 
 func TestCachixClient_CreateCache_PrivateCache(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify request body has IsPublic: false
-		var reqBody CreateCacheRequest
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-			t.Errorf("failed to decode request body: %v", err)
-		}
-		if reqBody.IsPublic {
-			t.Error("expected IsPublic to be false in request")
-		}
-
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(Cache{
-			Name:     "private-cache",
-			URI:      "https://private-cache.cachix.org",
-			IsPublic: false,
-		})
+
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/user":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(User{
+				ID:       12345,
+				Username: "testuser",
+				Email:    "testuser@example.com",
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/cache/private-cache":
+			// Verify request body has IsPublic: false
+			var reqBody CreateCacheRequest
+			if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+				t.Errorf("failed to decode request body: %v", err)
+			}
+			if reqBody.IsPublic {
+				t.Error("expected IsPublic to be false in request")
+			}
+			if !reqBody.GenerateSigningKey {
+				t.Error("expected GenerateSigningKey to be true")
+			}
+			// API returns empty body on success
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodGet && r.URL.Path == "/cache/private-cache":
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(Cache{
+				Name:     "private-cache",
+				URI:      "https://private-cache.cachix.org",
+				IsPublic: false,
+			})
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
 

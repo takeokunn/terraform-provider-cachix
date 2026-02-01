@@ -46,13 +46,18 @@ type Cache struct {
 
 // User represents a Cachix user.
 type User struct {
-	Username string `json:"username"`
-	Email    string `json:"email,omitempty"`
+	ID             int    `json:"id"`
+	Username       string `json:"githubUsername"`
+	Email          string `json:"email,omitempty"`
+	Fullname       string `json:"fullname,omitempty"`
+	SubscriptionPlan string `json:"subscriptionPlan,omitempty"`
 }
 
 // CreateCacheRequest represents the request body for creating a cache.
 type CreateCacheRequest struct {
-	IsPublic bool `json:"isPublic"`
+	IsPublic           bool `json:"isPublic"`
+	GenerateSigningKey bool `json:"generateSigningKey"`
+	AccountID          int  `json:"accountID"`
 }
 
 // APIError represents an error response from the Cachix API.
@@ -250,8 +255,16 @@ func (c *CachixClient) CreateCache(ctx context.Context, name string, isPublic bo
 		"is_public": isPublic,
 	})
 
+	// First, get the current user to obtain the accountID
+	user, err := c.GetUser(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user for cache creation: %w", err)
+	}
+
 	reqBody := CreateCacheRequest{
-		IsPublic: isPublic,
+		IsPublic:           isPublic,
+		GenerateSigningKey: true,
+		AccountID:          user.ID,
 	}
 
 	resp, body, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/cache/%s", name), reqBody)
@@ -263,9 +276,10 @@ func (c *CachixClient) CreateCache(ctx context.Context, name string, isPublic bo
 		return nil, c.handleErrorResponse(resp.StatusCode, body)
 	}
 
-	var cache Cache
-	if err := json.Unmarshal(body, &cache); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cache response: %w", err)
+	// The API returns an empty body on success, so fetch the cache details
+	cache, err := c.GetCache(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("cache created but failed to fetch details: %w", err)
 	}
 
 	tflog.Info(ctx, "Created cache", map[string]any{
@@ -274,7 +288,7 @@ func (c *CachixClient) CreateCache(ctx context.Context, name string, isPublic bo
 		"is_public": cache.IsPublic,
 	})
 
-	return &cache, nil
+	return cache, nil
 }
 
 // DeleteCache deletes a cache by name.

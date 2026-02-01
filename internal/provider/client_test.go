@@ -967,7 +967,7 @@ func TestCachixClient_doRequest_ContextCancellation(t *testing.T) {
 
 	client := NewCachixClient(server.URL, "test-token", "1.0.0")
 
-	// Create a context that will be cancelled
+	// Create a context that will be canceled
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start the request in a goroutine

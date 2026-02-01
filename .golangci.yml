@@ -15,18 +15,16 @@ linters:
     - staticcheck
     - unconvert
     - unused
-
-linters-settings:
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
-  misspell:
-    locale: US
-
-issues:
-  exclude-dirs:
-    - examples
+  settings:
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    misspell:
+      locale: US
+  exclusions:
+    paths:
+      - examples
 
 formatters:
   enable:

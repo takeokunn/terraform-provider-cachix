@@ -46,10 +46,10 @@ type Cache struct {
 
 // User represents a Cachix user.
 type User struct {
-	ID             int    `json:"id"`
-	Username       string `json:"githubUsername"`
-	Email          string `json:"email,omitempty"`
-	Fullname       string `json:"fullname,omitempty"`
+	ID               int    `json:"id"`
+	Username         string `json:"githubUsername"`
+	Email            string `json:"email,omitempty"`
+	Fullname         string `json:"fullname,omitempty"`
 	SubscriptionPlan string `json:"subscriptionPlan,omitempty"`
 }
 

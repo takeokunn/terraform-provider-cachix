@@ -30,5 +30,13 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = true
 
+      - name: Set up Cachix
+        uses: cachix/cachix-action@v17
+        with:
+          name: takeokunn-tf-provider-cachix
+          # Pushes build outputs to the cache on push to main; pull requests
+          # from forks fall back to read-only if the token is unavailable.
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
       - name: nix flake check
         run: nix flake check --print-build-logs

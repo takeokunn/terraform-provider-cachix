@@ -46,7 +46,10 @@ output "nix_conf" {
 
 ### Read-Only
 
+- `github_username` (String) The GitHub username of the account that owns the cache.
 - `id` (String) The identifier of the cache (same as name).
+- `permission` (String) The permission level the authenticated token has on the cache (`Read`, `Write`, or `Admin`).
+- `preferred_compression_method` (String) The compression method used for the cache (`XZ` or `ZSTD`).
 - `public_signing_keys` (List of String) List of public signing keys for use in nix.conf.
 - `uri` (String) The full URI of the cache (e.g., `https://my-cache.cachix.org`).
 

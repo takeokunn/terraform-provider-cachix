@@ -35,11 +35,26 @@ type CacheResource struct {
 
 // CacheResourceModel describes the resource data model.
 type CacheResourceModel struct {
-	ID                types.String `tfsdk:"id"`
-	Name              types.String `tfsdk:"name"`
-	IsPublic          types.Bool   `tfsdk:"is_public"`
-	URI               types.String `tfsdk:"uri"`
-	PublicSigningKeys types.List   `tfsdk:"public_signing_keys"`
+	ID                         types.String `tfsdk:"id"`
+	Name                       types.String `tfsdk:"name"`
+	IsPublic                   types.Bool   `tfsdk:"is_public"`
+	URI                        types.String `tfsdk:"uri"`
+	PublicSigningKeys          types.List   `tfsdk:"public_signing_keys"`
+	GithubUsername             types.String `tfsdk:"github_username"`
+	Permission                 types.String `tfsdk:"permission"`
+	PreferredCompressionMethod types.String `tfsdk:"preferred_compression_method"`
+}
+
+// applyCacheState copies mapped API values into the resource model.
+func (m *CacheResourceModel) applyCacheState(s cacheState) {
+	m.ID = s.ID
+	m.Name = s.Name
+	m.IsPublic = s.IsPublic
+	m.URI = s.URI
+	m.PublicSigningKeys = s.PublicSigningKeys
+	m.GithubUsername = s.GithubUsername
+	m.Permission = s.Permission
+	m.PreferredCompressionMethod = s.PreferredCompressionMethod
 }
 
 // Metadata returns the resource type name.
@@ -89,6 +104,27 @@ func (r *CacheResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				ElementType:         types.StringType,
 				MarkdownDescription: "List of public signing keys for use in nix.conf.",
 			},
+			"github_username": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "The GitHub username of the account that owns the cache.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"permission": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "The permission level the authenticated token has on the cache (`Read`, `Write`, or `Admin`).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"preferred_compression_method": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "The compression method used for the cache (`XZ` or `ZSTD`).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 		},
 	}
 }
@@ -127,7 +163,7 @@ func (r *CacheResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	data.ID, data.Name, data.IsPublic, data.URI, data.PublicSigningKeys = mapCacheToState(ctx, cache, &resp.Diagnostics)
+	data.applyCacheState(mapCacheToState(ctx, cache, &resp.Diagnostics))
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -174,7 +210,7 @@ func (r *CacheResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	data.ID, data.Name, data.IsPublic, data.URI, data.PublicSigningKeys = mapCacheToState(ctx, cache, &resp.Diagnostics)
+	data.applyCacheState(mapCacheToState(ctx, cache, &resp.Diagnostics))
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Cachix documentation
+    url: https://docs.cachix.org
+    about: Questions about Cachix itself (not this provider).
+  - name: Terraform Registry docs
+    url: https://registry.terraform.io/providers/takeokunn/cachix/latest/docs
+    about: Reference documentation for this provider's resources and data sources.

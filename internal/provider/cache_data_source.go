@@ -27,11 +27,26 @@ type CacheDataSource struct {
 
 // CacheDataSourceModel describes the data source data model.
 type CacheDataSourceModel struct {
-	ID                types.String `tfsdk:"id"`
-	Name              types.String `tfsdk:"name"`
-	URI               types.String `tfsdk:"uri"`
-	IsPublic          types.Bool   `tfsdk:"is_public"`
-	PublicSigningKeys types.List   `tfsdk:"public_signing_keys"`
+	ID                         types.String `tfsdk:"id"`
+	Name                       types.String `tfsdk:"name"`
+	URI                        types.String `tfsdk:"uri"`
+	IsPublic                   types.Bool   `tfsdk:"is_public"`
+	PublicSigningKeys          types.List   `tfsdk:"public_signing_keys"`
+	GithubUsername             types.String `tfsdk:"github_username"`
+	Permission                 types.String `tfsdk:"permission"`
+	PreferredCompressionMethod types.String `tfsdk:"preferred_compression_method"`
+}
+
+// applyCacheState copies mapped API values into the data source model.
+func (m *CacheDataSourceModel) applyCacheState(s cacheState) {
+	m.ID = s.ID
+	m.Name = s.Name
+	m.IsPublic = s.IsPublic
+	m.URI = s.URI
+	m.PublicSigningKeys = s.PublicSigningKeys
+	m.GithubUsername = s.GithubUsername
+	m.Permission = s.Permission
+	m.PreferredCompressionMethod = s.PreferredCompressionMethod
 }
 
 // Metadata returns the data source type name.
@@ -67,6 +82,18 @@ func (d *CacheDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 				MarkdownDescription: "List of public signing keys for use in nix.conf `trusted-public-keys`.",
 				Computed:            true,
 				ElementType:         types.StringType,
+			},
+			"github_username": schema.StringAttribute{
+				MarkdownDescription: "The GitHub username of the account that owns the cache.",
+				Computed:            true,
+			},
+			"permission": schema.StringAttribute{
+				MarkdownDescription: "The permission level the authenticated token has on the cache (`Read`, `Write`, or `Admin`).",
+				Computed:            true,
+			},
+			"preferred_compression_method": schema.StringAttribute{
+				MarkdownDescription: "The compression method used for the cache (`XZ` or `ZSTD`).",
+				Computed:            true,
 			},
 		},
 	}
@@ -109,7 +136,7 @@ func (d *CacheDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		"is_public":  cache.IsPublic,
 	})
 
-	data.ID, data.Name, data.IsPublic, data.URI, data.PublicSigningKeys = mapCacheToState(ctx, cache, &resp.Diagnostics)
+	data.applyCacheState(mapCacheToState(ctx, cache, &resp.Diagnostics))
 	if resp.Diagnostics.HasError() {
 		return
 	}

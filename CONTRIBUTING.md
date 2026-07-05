@@ -4,8 +4,16 @@ Thank you for your interest in contributing to the Terraform Provider for Cachix
 
 ## Requirements
 
-- [Go](https://golang.org/doc/install) 1.24+
-- [Terraform](https://www.terraform.io/downloads.html) 1.0+
+The recommended way to get a reproducible toolchain is [Nix](https://nixos.org)
+with flakes enabled. Everything below is pinned by the checked-in `flake.nix`:
+
+- [Nix](https://nixos.org/download) with `nix-command` and `flakes` enabled
+
+If you prefer a manual setup, you will need:
+
+- [Go](https://golang.org/doc/install) 1.25+
+- [Terraform](https://www.terraform.io/downloads.html) 1.0+ (or OpenTofu)
+- [golangci-lint](https://golangci-lint.run/)
 - A [Cachix](https://cachix.org) account with an API token (for acceptance tests)
 
 ## Building the Provider
@@ -17,16 +25,28 @@ git clone https://github.com/takeokunn/terraform-provider-cachix.git
 cd terraform-provider-cachix
 ```
 
+Enter the dev shell (Go, Terraform, and all tooling become available):
+
+```bash
+nix develop          # or `direnv allow` if you use direnv
+```
+
 Build the provider:
 
 ```bash
+nix build            # produces ./result/bin/terraform-provider-cachix
+# or, inside the dev shell:
 go build -v ./...
 ```
 
-Install the provider locally:
+## Continuous Integration
+
+CI is intentionally a single step: `nix flake check`. It builds the provider,
+runs the unit test suite, verifies `gofmt`, and runs `golangci-lint`. Run it
+locally before opening a pull request to get identical results:
 
 ```bash
-go install .
+nix flake check
 ```
 
 ## Testing

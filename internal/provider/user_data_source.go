@@ -27,9 +27,13 @@ type UserDataSource struct {
 
 // UserDataSourceModel describes the data source data model.
 type UserDataSourceModel struct {
-	ID       types.String `tfsdk:"id"`
-	Username types.String `tfsdk:"username"`
-	Email    types.String `tfsdk:"email"`
+	ID                       types.String `tfsdk:"id"`
+	Username                 types.String `tfsdk:"username"`
+	Email                    types.String `tfsdk:"email"`
+	Fullname                 types.String `tfsdk:"fullname"`
+	SubscriptionPlan         types.String `tfsdk:"subscription_plan"`
+	SubscriptionStorageLimit types.Int64  `tfsdk:"subscription_storage_limit"`
+	SubscriptionStorageUsage types.Int64  `tfsdk:"subscription_storage_usage"`
 }
 
 // Metadata returns the data source type name.
@@ -56,6 +60,22 @@ func (d *UserDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				MarkdownDescription: "The email address of the authenticated user.",
 				Computed:            true,
 				Sensitive:           true,
+			},
+			"fullname": schema.StringAttribute{
+				MarkdownDescription: "The full name of the authenticated user.",
+				Computed:            true,
+			},
+			"subscription_plan": schema.StringAttribute{
+				MarkdownDescription: "The subscription plan of the authenticated user (e.g., `Community`).",
+				Computed:            true,
+			},
+			"subscription_storage_limit": schema.Int64Attribute{
+				MarkdownDescription: "The storage limit of the subscription, in bytes.",
+				Computed:            true,
+			},
+			"subscription_storage_usage": schema.Int64Attribute{
+				MarkdownDescription: "The current storage usage of the subscription, in bytes.",
+				Computed:            true,
 			},
 		},
 	}
@@ -95,11 +115,11 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	data.ID = types.StringValue(user.Username)
 	data.Username = types.StringValue(user.Username)
-	if user.Email != "" {
-		data.Email = types.StringValue(user.Email)
-	} else {
-		data.Email = types.StringNull()
-	}
+	data.Email = optionalString(user.Email)
+	data.Fullname = optionalString(user.Fullname)
+	data.SubscriptionPlan = optionalString(user.SubscriptionPlan)
+	data.SubscriptionStorageLimit = types.Int64Value(user.SubscriptionStorageLimit)
+	data.SubscriptionStorageUsage = types.Int64Value(user.SubscriptionStorageUsage)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

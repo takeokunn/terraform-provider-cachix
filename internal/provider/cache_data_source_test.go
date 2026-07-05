@@ -36,7 +36,10 @@ func TestCacheDataSource_Schema(t *testing.T) {
 
 	d.Schema(context.Background(), req, resp)
 
-	attrs := []string{"id", "name", "uri", "is_public", "public_signing_keys"}
+	attrs := []string{
+		"id", "name", "uri", "is_public", "public_signing_keys",
+		"github_username", "permission", "preferred_compression_method",
+	}
 	for _, attr := range attrs {
 		if _, ok := resp.Schema.Attributes[attr]; !ok {
 			t.Errorf("expected '%s' attribute in schema", attr)

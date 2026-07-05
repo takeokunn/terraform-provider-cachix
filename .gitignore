@@ -27,3 +27,8 @@ coverage.out
 
 # Go
 vendor/
+
+# Nix
+result
+result-*
+.direnv/

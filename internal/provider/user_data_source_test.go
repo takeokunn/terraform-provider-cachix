@@ -35,7 +35,10 @@ func TestUserDataSource_Schema(t *testing.T) {
 
 	d.Schema(context.Background(), req, resp)
 
-	attrs := []string{"id", "username", "email"}
+	attrs := []string{
+		"id", "username", "email", "fullname",
+		"subscription_plan", "subscription_storage_limit", "subscription_storage_usage",
+	}
 	for _, attr := range attrs {
 		if _, ok := resp.Schema.Attributes[attr]; !ok {
 			t.Errorf("expected '%s' attribute in schema", attr)

@@ -130,29 +130,43 @@ func (h *APIErrorHandler) HandleNotFoundAsRemoved(err error) (shouldReturn bool,
 	return h.Handle(err), false
 }
 
-// CacheModel is a common interface for cache data models.
-type CacheModel interface {
-	SetID(types.String)
-	SetName(types.String)
-	SetIsPublic(types.Bool)
-	SetURI(types.String)
-	SetPublicSigningKeys(types.List)
+// cacheState holds the Terraform-typed values derived from a Cache API
+// response. Both the resource and data source models share these fields.
+type cacheState struct {
+	ID                         types.String
+	Name                       types.String
+	IsPublic                   types.Bool
+	URI                        types.String
+	PublicSigningKeys          types.List
+	GithubUsername             types.String
+	Permission                 types.String
+	PreferredCompressionMethod types.String
 }
 
-// mapCacheToState maps a Cache API response to the Terraform state model.
-func mapCacheToState(ctx context.Context, cache *Cache, diags *diag.Diagnostics) (
-	id, name types.String, isPublic types.Bool, uri types.String, publicSigningKeys types.List,
-) {
-	id = types.StringValue(cache.Name)
-	name = types.StringValue(cache.Name)
-	isPublic = types.BoolValue(cache.IsPublic)
-	uri = types.StringValue(cache.URI)
+// optionalString returns a null value for empty strings and a set value
+// otherwise, so unset optional API fields do not surface as empty strings.
+func optionalString(s string) types.String {
+	if s == "" {
+		return types.StringNull()
+	}
+	return types.StringValue(s)
+}
 
+// mapCacheToState maps a Cache API response to Terraform-typed state values.
+func mapCacheToState(ctx context.Context, cache *Cache, diags *diag.Diagnostics) cacheState {
 	keys, d := types.ListValueFrom(ctx, types.StringType, cache.PublicSigningKeys)
 	diags.Append(d...)
-	publicSigningKeys = keys
 
-	return
+	return cacheState{
+		ID:                         types.StringValue(cache.Name),
+		Name:                       types.StringValue(cache.Name),
+		IsPublic:                   types.BoolValue(cache.IsPublic),
+		URI:                        types.StringValue(cache.URI),
+		PublicSigningKeys:          keys,
+		GithubUsername:             optionalString(cache.GithubUsername),
+		Permission:                 optionalString(cache.Permission),
+		PreferredCompressionMethod: optionalString(cache.PreferredCompressionMethod),
+	}
 }
 
 // getOperationGerund returns the gerund form of an operation verb.

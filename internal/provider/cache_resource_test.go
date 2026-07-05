@@ -38,7 +38,10 @@ func TestCacheResource_Schema(t *testing.T) {
 	r.Schema(context.Background(), req, resp)
 
 	// Verify required attributes
-	attrs := []string{"id", "name", "is_public", "uri", "public_signing_keys"}
+	attrs := []string{
+		"id", "name", "is_public", "uri", "public_signing_keys",
+		"github_username", "permission", "preferred_compression_method",
+	}
 	for _, attr := range attrs {
 		if _, ok := resp.Schema.Attributes[attr]; !ok {
 			t.Errorf("expected '%s' attribute in schema", attr)

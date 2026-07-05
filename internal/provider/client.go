@@ -37,20 +37,25 @@ type CachixClient struct {
 
 // Cache represents a Cachix binary cache.
 type Cache struct {
-	Name              string   `json:"name"`
-	URI               string   `json:"uri"`
-	IsPublic          bool     `json:"isPublic"`
-	PublicSigningKeys []string `json:"publicSigningKeys"`
-	CreatedAt         string   `json:"createdAt,omitempty"`
+	Name                       string   `json:"name"`
+	URI                        string   `json:"uri"`
+	IsPublic                   bool     `json:"isPublic"`
+	PublicSigningKeys          []string `json:"publicSigningKeys"`
+	GithubUsername             string   `json:"githubUsername,omitempty"`
+	Permission                 string   `json:"permission,omitempty"`
+	PreferredCompressionMethod string   `json:"preferredCompressionMethod,omitempty"`
+	CreatedAt                  string   `json:"createdAt,omitempty"`
 }
 
 // User represents a Cachix user.
 type User struct {
-	ID               int    `json:"id"`
-	Username         string `json:"githubUsername"`
-	Email            string `json:"email,omitempty"`
-	Fullname         string `json:"fullname,omitempty"`
-	SubscriptionPlan string `json:"subscriptionPlan,omitempty"`
+	ID                       int    `json:"id"`
+	Username                 string `json:"githubUsername"`
+	Email                    string `json:"email,omitempty"`
+	Fullname                 string `json:"fullname,omitempty"`
+	SubscriptionPlan         string `json:"subscriptionPlan,omitempty"`
+	SubscriptionStorageLimit int64  `json:"subscriptionStorageLimit,omitempty"`
+	SubscriptionStorageUsage int64  `json:"subscriptionStorageUsage,omitempty"`
 }
 
 // CreateCacheRequest represents the request body for creating a cache.

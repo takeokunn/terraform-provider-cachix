@@ -78,20 +78,15 @@ the entire toolchain (Go, Terraform, golangci-lint, goreleaser, terraform-docs).
 nix develop            # Enter a dev shell with every tool pinned
 nix build              # Build the provider binary
 nix flake check        # Run build, unit tests, gofmt, and golangci-lint
+nix run .#docs         # Regenerate the registry documentation
+nix run .#testacc      # Acceptance tests (requires CACHIX_AUTH_TOKEN)
 ```
 
 If you use [direnv](https://direnv.net), running `direnv allow` loads the dev
 shell automatically via the checked-in `.envrc` (`use flake`).
 
-Common tasks are also wrapped in the `Makefile`:
-
-```bash
-make build     # go build ./...
-make test      # unit tests
-make testacc   # acceptance tests (requires CACHIX_AUTH_TOKEN)
-make lint      # golangci-lint
-make generate  # regenerate registry documentation
-```
+Inside `nix develop` you can also use the Go toolchain directly, e.g.
+`go test ./...` or `go generate ./...`.
 
 CI runs a single `nix flake check`, so a green `nix flake check` locally
 mirrors exactly what runs on pull requests.

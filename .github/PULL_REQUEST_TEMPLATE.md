@@ -18,6 +18,6 @@ before requesting review.
 
 - [ ] `nix flake check` passes locally
 - [ ] Tests added or updated for the change
-- [ ] Documentation regenerated (`make generate`) if schemas changed
+- [ ] Documentation regenerated (`nix run .#docs`) if schemas changed
 - [ ] `CHANGELOG.md` updated under the Unreleased/next-version section
 - [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)

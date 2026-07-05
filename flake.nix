@@ -29,7 +29,7 @@
 
           src = ./.;
 
-          vendorHash = "sha256-xgvmRPHWiUu/JaoUmYw674hqpdO6wvs4j/W2Cqxow1Q=";
+          vendorHash = "sha256-NgdUaB1Src9B/AlJLkV5Uf1L2PEPcnDRQ3De4r5KXIc=";
 
           # Strip debug info and stamp the version, mirroring .goreleaser.yml.
           ldflags = [
@@ -78,20 +78,35 @@
             touch $out
           '';
 
-          # Static analysis with golangci-lint.
-          lint = pkgs.runCommand "check-golangci-lint"
-            {
-              nativeBuildInputs = [ pkgs.go pkgs.golangci-lint ];
-              # golangci-lint needs a writable cache/home inside the sandbox.
-            } ''
-            export HOME=$TMPDIR
-            export GOFLAGS=-mod=mod
-            cp -r ${./.} ./src
-            chmod -R u+w ./src
-            cd ./src
-            golangci-lint run ./... || exit 1
-            touch $out
-          '';
+          # Static analysis with golangci-lint. buildGoModule's goModules
+          # output is a Go vendor directory; symlinking it as ./vendor lets the
+          # Go toolchain resolve every import offline via its standard vendor
+          # auto-detection (go >= 1.14), so this works inside the
+          # network-isolated Nix sandbox on Linux CI.
+          lint = pkgs.stdenv.mkDerivation {
+            pname = "terraform-provider-cachix-lint";
+            inherit version;
+            src = ./.;
+            nativeBuildInputs = [ pkgs.go pkgs.golangci-lint ];
+            configurePhase = ''
+              runHook preConfigure
+              ln -s ${terraform-provider-cachix.goModules} vendor
+              runHook postConfigure
+            '';
+            buildPhase = ''
+              runHook preBuild
+              export HOME=$TMPDIR
+              export GOCACHE=$TMPDIR/go-cache
+              export GOLANGCI_LINT_CACHE=$TMPDIR/golangci-lint-cache
+              golangci-lint run ./...
+              runHook postBuild
+            '';
+            installPhase = ''
+              runHook preInstall
+              touch $out
+              runHook postInstall
+            '';
+          };
         };
 
         # `nix develop` drops into a shell with the full toolchain.
@@ -109,7 +124,6 @@
             terraform-ls
 
             # Utilities
-            gnumake
             jq
           ];
 
@@ -118,6 +132,32 @@
             echo "  go:        $(go version | cut -d' ' -f3)"
             echo "  terraform: $(terraform version | head -n1)"
           '';
+        };
+
+        # Runnable entry points (replacing the Makefile).
+        apps = {
+          # `nix run .#docs` regenerates the registry documentation.
+          docs = {
+            type = "app";
+            program = pkgs.lib.getExe (pkgs.writeShellApplication {
+              name = "generate-docs";
+              runtimeInputs = [ pkgs.go pkgs.terraform ];
+              text = "go generate ./...";
+            });
+          };
+
+          # `nix run .#testacc` runs the acceptance tests. Requires
+          # CACHIX_AUTH_TOKEN and creates real resources against the Cachix API.
+          testacc = {
+            type = "app";
+            program = pkgs.lib.getExe (pkgs.writeShellApplication {
+              name = "testacc";
+              runtimeInputs = [ pkgs.go ];
+              text = ''
+                TF_ACC=1 go test -v -timeout 120m ./...
+              '';
+            });
+          };
         };
 
         # `nix fmt` formats Nix files.

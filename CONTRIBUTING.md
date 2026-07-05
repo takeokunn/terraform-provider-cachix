@@ -65,6 +65,8 @@ Acceptance tests create real resources against the Cachix API. You must set the 
 
 ```bash
 export CACHIX_AUTH_TOKEN="your-token-here"
+nix run .#testacc
+# or, inside `nix develop`:
 TF_ACC=1 go test -v ./internal/provider/... -timeout 120m
 ```
 
@@ -72,7 +74,8 @@ TF_ACC=1 go test -v ./internal/provider/... -timeout 120m
 
 ### Linting
 
-This project uses [golangci-lint](https://golangci-lint.run/) for linting:
+This project uses [golangci-lint](https://golangci-lint.run/) for linting.
+It runs as part of `nix flake check`, or directly:
 
 ```bash
 golangci-lint run ./...
@@ -80,7 +83,10 @@ golangci-lint run ./...
 
 ## Documentation
 
-Provider documentation is generated using [terraform-plugin-docs](https://github.com/hashicorp/terraform-plugin-docs).
+Provider documentation is generated using
+[terraform-plugin-docs](https://github.com/hashicorp/terraform-plugin-docs),
+which is pinned via a Go `tool` directive in `go.mod` (Go 1.24+) and invoked
+through `go tool` — there is no separate `tools` module.
 
 ### Structure
 
@@ -93,14 +99,13 @@ Provider documentation is generated using [terraform-plugin-docs](https://github
 ### Generating Documentation
 
 ```bash
-go generate ./...
+nix run .#docs
 ```
 
-Or using tfplugindocs directly:
+Or, inside `nix develop`, using the `go:generate` directives directly:
 
 ```bash
-go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
-tfplugindocs generate
+go generate ./...
 ```
 
 ## Submitting Changes

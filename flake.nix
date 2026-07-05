@@ -29,7 +29,10 @@
 
           src = ./.;
 
-          vendorHash = "sha256-NgdUaB1Src9B/AlJLkV5Uf1L2PEPcnDRQ3De4r5KXIc=";
+          # Keep dependencies as a local module proxy (not a vendor tree) so the
+          # same offline cache can drive both the build and golangci-lint.
+          proxyVendor = true;
+          vendorHash = "sha256-jG95xlbGQJvHXEpyc3/2eZrNhmlDkA34V/jHeRjq6BY=";
 
           # Strip debug info and stamp the version, mirroring .goreleaser.yml.
           ldflags = [
@@ -78,25 +81,24 @@
             touch $out
           '';
 
-          # Static analysis with golangci-lint. buildGoModule's goModules
-          # output is a Go vendor directory; symlinking it as ./vendor lets the
-          # Go toolchain resolve every import offline via its standard vendor
-          # auto-detection (go >= 1.14), so this works inside the
-          # network-isolated Nix sandbox on Linux CI.
+          # Static analysis with golangci-lint. With proxyVendor = true,
+          # buildGoModule's goModules output is a local Go module proxy. Point
+          # GOPROXY at it and populate a writable module cache, so golangci-lint
+          # resolves every import from the offline cache (-mod=mod) and works
+          # inside the network-isolated Nix sandbox on Linux CI.
           lint = pkgs.stdenv.mkDerivation {
             pname = "terraform-provider-cachix-lint";
             inherit version;
             src = ./.;
             nativeBuildInputs = [ pkgs.go pkgs.golangci-lint ];
-            configurePhase = ''
-              runHook preConfigure
-              ln -s ${terraform-provider-cachix.goModules} vendor
-              runHook postConfigure
-            '';
             buildPhase = ''
               runHook preBuild
               export HOME=$TMPDIR
+              export GOPROXY=file://${terraform-provider-cachix.goModules}
+              export GOSUMDB=off
+              export GOFLAGS=-mod=mod
               export GOCACHE=$TMPDIR/go-cache
+              export GOMODCACHE=$TMPDIR/go-mod
               export GOLANGCI_LINT_CACHE=$TMPDIR/golangci-lint-cache
               golangci-lint run ./...
               runHook postBuild
